@@ -187,6 +187,7 @@ NetworkMessage = Union[
     RoomJoinedMessage,
     LeaveRoomMessage,
     RoomLeftMessage,
+    RoomClosedMessage,
     StartGameMessage,
     GameStartedMessage,
     GameStateMessage,
