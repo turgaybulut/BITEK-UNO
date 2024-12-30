@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from server.game_server import GameServer
 
 logging.basicConfig(
@@ -8,11 +9,12 @@ logging.basicConfig(
 
 
 async def run_server():
-    server = GameServer(host="0.0.0.0", port=8765)
+    port = int(os.environ.get("PORT", 5000))
+    server = GameServer(host="0.0.0.0", port=port)
     await server.start()
     try:
         while True:
-            await asyncio.sleep(10)
+            await asyncio.sleep(1)
     except KeyboardInterrupt:
         await server.stop()
 
