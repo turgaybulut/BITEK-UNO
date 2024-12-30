@@ -38,7 +38,10 @@ card_images = load_cards_at_hand()
 def clicked_on_card(card):
     print(f"clicked on card with position{card["pos_x"], card["pos_y"]}")
     card_images.remove(card) #elden çıkıyor sonuçta!
-    return card
+    #screen.blit(card["image"], (card["pos_x"], card["pos_y"]))
+    #print(card["pos_x"])
+
+    #pygame.display.flip()
 
 
 def load_closed_card():  # I dunno this approach with two load methods makes sense :p
@@ -125,10 +128,12 @@ animation_card_image = None #load_closed_card["image"]
 running = True
 clock = pygame.time.Clock()
 
-while running:  
+while running:
+    
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+
         elif event.type == pygame.MOUSEBUTTONDOWN:  # Detect mouse click
             mouse_pos = pygame.mouse.get_pos()  # Get mouse position
             for card in card_images:
@@ -151,10 +156,13 @@ while running:
 
     if animation_active:
         duration = 1
+
         current_time = pygame.time.get_ticks()
         elapsed_time = (current_time - start_time) / 1000  # Convert to seconds
         current_x, current_y, progress = animate_card(start_pos, end_pos, duration, elapsed_time)
+
         current_pos = (current_x, current_y)
+
         screen.blit(animate_card_image, current_pos) 
 
         if progress >= 1:  # Stop animation once it's complete
