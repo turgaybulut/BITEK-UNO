@@ -1,1 +1,1 @@
-web: PYTHONPATH=$PYTHONPATH:./src python src/common/example_server_script.py
+web: PYTHONPATH=$PYTHONPATH:./src python scripts/run_server.py
