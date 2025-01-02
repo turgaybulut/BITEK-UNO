@@ -14,7 +14,7 @@ async def run_server():
     await server.start()
     try:
         while True:
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.1)
     except KeyboardInterrupt:
         await server.stop()
 
