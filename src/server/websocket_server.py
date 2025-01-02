@@ -70,10 +70,10 @@ class WebSocketServer:
 
     async def _handle_connection(self, websocket: ClientConnection):
         client_id = str(id(websocket))
-        self.clients[client_id] = ClientSession(ws=websocket, player_id="")
-        print(f"New connection: {client_id}")
 
         try:
+            self.clients[client_id] = ClientSession(ws=websocket, player_id="")
+            print(f"New connection: {client_id}")
             async for message in websocket:
                 try:
                     data = json.loads(message)
