@@ -144,14 +144,18 @@ class UnoGame:
         game_room_frame = tk.Frame(self.root, bg="#34495E")
         game_room_frame.place(relwidth=1, relheight=1)
 
+        # Top Section for Room Info
+        top_frame = tk.Frame(game_room_frame, bg="#34495E")
+        top_frame.place(relx=0.05, rely=0.02, relwidth=0.9, relheight=0.1)
+
         # Display Room ID
         tk.Label(
-            game_room_frame,
+            top_frame,
             text=f"Room ID: {self.room_code}",
             font=("Arial", 16),
             bg="#34495E",
             fg="white"
-        ).pack(pady=20)
+        ).pack()
 
         # Game Board Section
         game_board = tk.Frame(game_room_frame, bg="#2C3E50", highlightthickness=2)
