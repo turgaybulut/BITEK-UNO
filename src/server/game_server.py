@@ -60,7 +60,7 @@ class GameServer:
         client_session = self.ws_server.clients.get(client_id)
         if client_session:
             player = Player(player_id, client_session.name)
-            if room.add_player(player):
+            if await room.add_player(player):
                 self.player_room_map[player_id] = room.room_id
                 self.ws_server.add_to_room(client_id, room.room_id)
 
@@ -89,7 +89,7 @@ class GameServer:
 
         if client_session:
             player = Player(player_id, client_session.name)
-            if room.add_player(player):
+            if await room.add_player(player):
                 self.player_room_map[player_id] = room.room_id
                 self.ws_server.add_to_room(client_id, room.room_id)
 
@@ -113,7 +113,7 @@ class GameServer:
 
         if room_id in self.active_rooms and player_id:
             room = self.active_rooms[room_id]
-            room.remove_player(player_id)
+            await room.remove_player(player_id)
             self.ws_server.remove_from_room(client_id)
             self.player_room_map.pop(player_id, None)
 
@@ -128,7 +128,7 @@ class GameServer:
         room_id = message.get("room_id")
         if room_id in self.active_rooms:
             room = self.active_rooms[room_id]
-            if room.start_game():
+            if await room.start_game():
                 # Game started successfully - notification will be handled by room events
                 pass
             else:
@@ -148,7 +148,7 @@ class GameServer:
 
         if room_id in self.active_rooms and player_id:
             room = self.active_rooms[room_id]
-            success = room.handle_player_action(
+            success = await room.handle_player_action(
                 player_id, "play_card", {"card": card, "chosen_color": chosen_color}
             )
 
@@ -164,7 +164,7 @@ class GameServer:
 
         if room_id in self.active_rooms and player_id:
             room = self.active_rooms[room_id]
-            room.handle_player_action(player_id, "draw_card", {})
+            await room.handle_player_action(player_id, "draw_card", {})
 
     async def _handle_chat_message(self, client_id: str, message: dict):
         room_id = message.get("room_id")
@@ -175,12 +175,12 @@ class GameServer:
             room = self.active_rooms[room_id]
             client_session = self.ws_server.clients.get(client_id)
             if client_session:
-                room.add_chat_message(player_id, client_session.name, content)
+                await room.add_chat_message(player_id, client_session.name, content)
 
     async def _handle_player_disconnect(self, player_id: str, room_id: str):
         if room_id in self.active_rooms:
             room = self.active_rooms[room_id]
-            room.remove_player(player_id)
+            await room.remove_player(player_id)
 
             await self.ws_server.broadcast_to_room(
                 room_id,
