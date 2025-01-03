@@ -35,6 +35,10 @@ class MessageType(Enum):
     # Error Handling
     ERROR = auto()  # Server -> Client: Error message
 
+    # Room listing
+    LIST_ROOMS = auto()  # Client -> Server: Request room list
+    ROOM_LIST = auto()  # Server -> Client: Room list response
+
 
 class PlayerState(TypedDict):
     player_id: str
@@ -54,6 +58,13 @@ class GameState(TypedDict):
     deck_count: int  # Number of cards remaining in deck
     players: List[PlayerState]  # List of all players
     your_hand: Optional[List[Dict]]  # Current player's cards (if applicable)
+
+
+class RoomInfo(TypedDict):
+    room_id: str
+    player_count: int
+    max_players: int
+    state: str
 
 
 # Authentication Messages
@@ -177,6 +188,15 @@ class ErrorMessage(TypedDict):
     message: str  # Error description
 
 
+class ListRoomsMessage(TypedDict):
+    type: str  # MessageType.LIST_ROOMS
+
+
+class RoomListMessage(TypedDict):
+    type: str  # MessageType.ROOM_LIST
+    rooms: List[RoomInfo]
+
+
 # Union type for all possible messages
 NetworkMessage = Union[
     AuthenticateMessage,
@@ -198,4 +218,6 @@ NetworkMessage = Union[
     ChatMessage,
     PlayerConnectionMessage,
     ErrorMessage,
+    ListRoomsMessage,
+    RoomListMessage,
 ]
