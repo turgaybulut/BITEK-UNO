@@ -200,15 +200,24 @@ class GameServer:
 
     async def _handle_room_update(self, data: dict):
         room_id = data["room_id"]
-        if room_id in self.active_rooms:
-            await self.ws_server.broadcast_to_room(
-                room_id,
-                {
-                    "type": MessageType.GAME_STATE.name,
-                    "room_id": room_id,
-                    "state": data["state"],
-                },
-            )
+        if room_id not in self.active_rooms:
+            return
+
+        room = self.active_rooms[room_id]
+        room_clients = self.ws_server.room_clients.get(room_id, set())
+
+        for client_id in room_clients:
+            client_session = self.ws_server.clients.get(client_id)
+            if client_session and client_session.player_id:
+                player_state = room.get_player_state(client_session.player_id)
+                await self.ws_server.send_to_client(
+                    client_id,
+                    {
+                        "type": MessageType.GAME_STATE.name,
+                        "room_id": room_id,
+                        "state": player_state["state"],
+                    },
+                )
 
     async def _handle_game_update(self, data: dict):
         await self._handle_room_update(data)
