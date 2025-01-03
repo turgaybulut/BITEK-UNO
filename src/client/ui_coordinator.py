@@ -2,7 +2,7 @@ from typing import Optional
 from client.game_client import GameClient
 from client.ui.game_ui import GameUI
 from common.card import Card
-from common.card_enums import CardColor
+from common.card_enums import CardColor, CardType
 
 
 class UICoordinator:
@@ -51,6 +51,9 @@ class UICoordinator:
     async def _handle_card_played(
         self, card: Card, color: Optional[CardColor] = None
     ) -> None:
+        if card.type in [CardType.WILD, CardType.WILD_DRAW_FOUR] and not color:
+            self.game_ui.show_color_selector(card)
+            return
         await self.game_client.play_card(card, color.name if color else None)
 
     async def _handle_card_drawn(self) -> None:
@@ -58,7 +61,7 @@ class UICoordinator:
 
     async def _handle_color_selected(self, color: CardColor) -> None:
         if self.game_ui.pending_wild_card:
-            await self.game_client.play_card(self.game_ui.pending_wild_card, color.name)
+            await self._handle_card_played(self.game_ui.pending_wild_card, color)
             self.game_ui.pending_wild_card = None
 
     async def _handle_chat_message(self, message: str) -> None:

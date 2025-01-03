@@ -4,6 +4,8 @@ from uuid import uuid4
 import time
 from common.game import Game, Player, GameState
 from common.network_protocol import MessageType
+from common.card import Card
+from common.card_enums import CardColor, CardType
 from server.event_manager import EventManager
 
 
@@ -89,8 +91,20 @@ class GameRoom:
         try:
             match action:
                 case "play_card":
+                    card = Card.from_dict(data["card"])
+                    if card.type in [CardType.WILD, CardType.WILD_DRAW_FOUR]:
+                        chosen_color = data.get("chosen_color")
+                        if not chosen_color:
+                            return False
+
                     self.game.play_card(
-                        player_id, data["card"], data.get("chosen_color")
+                        player_id,
+                        card,
+                        (
+                            CardColor[data["chosen_color"]]
+                            if data.get("chosen_color")
+                            else None
+                        ),
                     )
 
                     if self.game.state == GameState.FINISHED:

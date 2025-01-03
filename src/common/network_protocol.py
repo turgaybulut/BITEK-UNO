@@ -22,7 +22,6 @@ class MessageType(Enum):
     GAME_STATE = auto()  # Server -> Client: Current game state
     PLAY_CARD = auto()  # Client -> Server: Play a card
     DRAW_CARD = auto()  # Client -> Server: Draw a card
-    COLOR_SELECTION = auto()  # Client -> Server: Select color for wild card
     GAME_END = auto()  # Server -> Client: Game has ended
 
     # Chat
@@ -151,13 +150,6 @@ class DrawCardMessage(TypedDict):
     player_id: str  # Player drawing
 
 
-class ColorSelectionMessage(TypedDict):
-    type: str  # MessageType.COLOR_SELECTION
-    room_id: str  # Room ID
-    player_id: str  # Player selecting
-    color: str  # Selected color
-
-
 class GameEndMessage(TypedDict):
     type: str  # MessageType.GAME_END
     room_id: str  # Room ID
@@ -213,7 +205,6 @@ NetworkMessage = Union[
     GameStateMessage,
     PlayCardMessage,
     DrawCardMessage,
-    ColorSelectionMessage,
     GameEndMessage,
     ChatMessage,
     PlayerConnectionMessage,
