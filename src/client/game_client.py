@@ -57,6 +57,9 @@ class GameClient:
             f"message_{MessageType.PLAYER_RECONNECTED.name}",
             self._handle_player_reconnected,
         )
+        self.event_manager.on(
+            f"message_{MessageType.ROOM_LIST.name}", self._handle_room_list
+        )
         self.event_manager.on("connection_closed", self._handle_connection_closed)
 
     async def connect(self) -> bool:
@@ -194,6 +197,9 @@ class GameClient:
                 "player_reconnected",
                 {"room_id": data["room_id"], "player_id": data["player_id"]},
             )
+
+    async def _handle_room_list(self, data: Dict[str, Any]):
+        await self.event_manager.emit("room_list_updated", data)
 
     async def _handle_connection_closed(self, _: Dict[str, Any]) -> None:
         self.current_room_id = None

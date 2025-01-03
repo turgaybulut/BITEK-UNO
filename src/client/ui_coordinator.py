@@ -40,6 +40,9 @@ class UICoordinator:
         self.game_client.event_manager.on(
             "player_reconnected", self._handle_player_reconnected
         )
+        self.game_client.event_manager.on(
+            "room_list_updated", self._handle_room_list_updated
+        )
         self.game_client.event_manager.on("error", self._handle_error)
         self.game_client.event_manager.on(
             "connection_closed", self._handle_connection_closed
@@ -113,6 +116,9 @@ class UICoordinator:
     async def _handle_player_reconnected(self, data: dict) -> None:
         self.game_ui.update_player_connection(data["player_id"], True)
         self.game_ui.show_player_reconnected(data["player_id"])
+
+    async def _handle_room_list_updated(self, data: dict):
+        self.game_ui.update_room_list(data["rooms"])
 
     async def _handle_connection_closed(self, _: dict) -> None:
         self.game_ui.show_connection_lost()

@@ -61,6 +61,17 @@ class WebSocketServer:
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
 
+    async def broadcast_to_all(self, message: Dict[str, Any]) -> None:
+        msg_str = json.dumps(message)
+        tasks = []
+        for client_id, client in self.clients.items():
+            try:
+                tasks.append(client.ws.send(msg_str))
+            except Exception:
+                continue
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+
     async def send_to_client(self, client_id: str, message: Dict[str, Any]) -> None:
         if client_id in self.clients:
             try:
