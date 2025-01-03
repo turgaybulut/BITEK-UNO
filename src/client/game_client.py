@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Any, Callable, List
+from typing import Optional, Dict, Any
 import asyncio
 from uuid import uuid4
 from client.websocket_client import WebSocketClient
@@ -35,6 +35,12 @@ class GameClient:
         )
         self.event_manager.on(
             f"message_{MessageType.ROOM_JOINED.name}", self._handle_room_joined
+        )
+        self.event_manager.on(
+            f"message_{MessageType.ROOM_LEFT.name}", self._handle_room_left
+        )
+        self.event_manager.on(
+            f"message_{MessageType.ROOM_CLOSED.name}", self._handle_room_closed
         )
         self.event_manager.on(
             f"message_{MessageType.GAME_STATE.name}", self._handle_game_state
@@ -165,6 +171,18 @@ class GameClient:
         self.current_room_id = data["room_id"]
         self.current_game_state = data["state"]
         await self.event_manager.emit("room_joined", data)
+
+    async def _handle_room_left(self, data: Dict[str, Any]) -> None:
+        if data["room_id"] == self.current_room_id:
+            self.current_room_id = None
+            self.current_game_state = None
+            await self.event_manager.emit("room_left", data)
+
+    async def _handle_room_closed(self, data: Dict[str, Any]) -> None:
+        if data["room_id"] == self.current_room_id:
+            self.current_room_id = None
+            self.current_game_state = None
+            await self.event_manager.emit("room_closed", data)
 
     async def _handle_game_state(self, data: Dict[str, Any]) -> None:
         self.current_game_state = data["state"]

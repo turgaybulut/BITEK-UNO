@@ -28,6 +28,8 @@ class UICoordinator:
         )
         self.game_client.event_manager.on("room_created", self._handle_room_created)
         self.game_client.event_manager.on("room_joined", self._handle_room_joined)
+        self.game_client.event_manager.on("room_left", self._handle_room_left)
+        self.game_client.event_manager.on("room_closed", self._handle_room_closed)
         self.game_client.event_manager.on("game_state_updated", self._handle_game_state)
         self.game_client.event_manager.on("game_started", self._handle_game_started)
         self.game_client.event_manager.on("game_ended", self._handle_game_ended)
@@ -89,6 +91,17 @@ class UICoordinator:
     async def _handle_room_joined(self, data: dict) -> None:
         self.game_ui.update_room_state(data["state"])
         self.game_ui.show_game_setup()
+
+    async def _handle_room_left(self, data: dict) -> None:
+        self.game_ui.clear_game_state()
+        self.game_ui.show_room_controls()
+        self.game_ui.show_notification("You have left the room")
+
+    async def _handle_room_closed(self, data: dict) -> None:
+        self.game_ui.clear_game_state()
+        self.game_ui.show_room_controls()
+        self.game_ui.show_notification("The room has been closed")
+        await self.game_client.leave_room()
 
     async def _handle_game_state(self, data: dict) -> None:
         self.game_ui.update_game_state(data["state"])
