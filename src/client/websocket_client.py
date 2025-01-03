@@ -4,6 +4,7 @@ import asyncio
 import websockets
 from websockets.asyncio.client import ClientConnection
 from server.event_manager import EventManager
+from client.logger import ClientLogger
 
 
 class WebSocketClient:
@@ -12,6 +13,7 @@ class WebSocketClient:
         self.event_manager = event_manager
         self.websocket: Optional[ClientConnection] = None
         self.connected = False
+        self.logger = ClientLogger("WebSocketClient")
 
     async def connect(self) -> bool:
         try:
@@ -62,10 +64,10 @@ class WebSocketClient:
                     if message_type:
                         await self.event_manager.emit(f"message_{message_type}", data)
                 except json.JSONDecodeError:
-                    print(f"Invalid JSON received: {message}")
+                    self.logger.log_error(f"Invalid JSON received: {message}")
                     continue
                 except Exception as e:
-                    print(f"Error processing message: {e}")
+                    self.logger.log_error(f"Error processing message: {e}")
                     await self.event_manager.emit("error", {"message": str(e)})
         except websockets.exceptions.ConnectionClosed as e:
             print(f"Connection closed: {e}")
