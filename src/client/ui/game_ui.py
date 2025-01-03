@@ -198,56 +198,123 @@ class UnoGame:
         game_room_frame = tk.Frame(self.root, bg="#34495E")
         game_room_frame.place(relwidth=1, relheight=1)
 
-        # Top Section for Room Info
-        top_frame = tk.Frame(game_room_frame, bg="#34495E")
-        top_frame.place(relx=0.05, rely=0.02, relwidth=0.9, relheight=0.1)
+        # Main Game Area (Pygame Surface) - Left side
+        game_area_frame = tk.Frame(game_room_frame, bg="#2C3E50", highlightthickness=2)
+        game_area_frame.place(relx=0.02, rely=0.02, relwidth=0.66, relheight=0.96)
 
-        # Display Room ID
+        # This frame will be replaced with a Pygame surface
+        # Placeholder label until Pygame implementation
+        #Gameboard ve playerhand burada pygame kullanilarak implement edilecek
         tk.Label(
-            top_frame,
-            text=f"Room ID: {self.room_code}",
-            font=("Arial", 16),
-            bg="#34495E",
+            game_area_frame,
+            text="Pygame Surface\n(Game Board + Player Hand)",
+            font=("Arial", 20),
+            bg="#2C3E50",
             fg="white"
-        ).pack()
+        ).pack(expand=True)
 
-        # Game Board Section
-        game_board = tk.Frame(game_room_frame, bg="#2C3E50", highlightthickness=2)
-        game_board.place(relx=0.05, rely=0.05, relwidth=0.6, relheight=0.8)
-        GameBoard.create_game_board(game_board)
-
-        # Chat Box Section
+        # Chat Box Section with Room Controls - Right side
         chat_box_frame = tk.Frame(game_room_frame, bg="#34495E", highlightthickness=2)
-        chat_box_frame.place(relx=0.7, rely=0.05, relwidth=0.25, relheight=0.8)
-        ChatBox.create_chat_area(chat_box_frame)
+        chat_box_frame.place(relx=0.7, rely=0.02, relwidth=0.28, relheight=0.96)
 
-        # Player Hand Section
-        hand_frame = tk.Frame(game_room_frame, bg="#34495E", highlightthickness=2)
-        hand_frame.place(relx=0.05, rely=0.85, relwidth=0.9, relheight=0.1)
-        PlayerHand.create_hand_area(hand_frame)
+        # Room info section at top of chat box
+        room_info = tk.Frame(chat_box_frame, bg="#2C3E50")
+        room_info.pack(fill="x", pady=(5, 0))
 
-        # Buttons for game room actions
+        # Room ID display
+        tk.Label(
+            room_info,
+            text=f"Room Code: {self.room_code}",
+            font=("Arial", 14, "bold"),
+            bg="#2C3E50",
+            fg="white"
+        ).pack(pady=(10, 5))
+
+        # Player count section
+        player_frame = tk.Frame(room_info, bg="#2C3E50")
+        player_frame.pack(fill="x", pady=(0, 10))
+
+        # Player count display (you'll need to update this with actual count)
+        self.player_count_label = tk.Label(
+            player_frame,
+            text="Players: 1/4",  # Default value, should be updated as players join/leave
+            font=("Arial", 12),
+            bg="#2C3E50",
+            fg="#27AE60"  # Green color for active players
+        )
+        self.player_count_label.pack()
+
+        # Add player icons/indicators
+        player_icons_frame = tk.Frame(player_frame, bg="#2C3E50")
+        player_icons_frame.pack(pady=5)
+
+        self.player_indicators = []
+        for i in range(4):  # 4 player slots
+            indicator = tk.Label(
+                player_icons_frame,
+                text="○",  # Empty circle for empty slot
+                font=("Arial", 16),
+                bg="#2C3E50",
+                fg="#95A5A6",  # Gray color for empty slots
+                padx=5
+            )
+            indicator.pack(side=tk.LEFT)
+            self.player_indicators.append(indicator)
+
+        # Update first indicator to show current player
+        self.player_indicators[0].configure(text="●", fg="#27AE60")  # Filled circle for active player
+
+        # Chat area (expanded)
+        chat_area_frame = tk.Frame(chat_box_frame, bg="#2C3E50")
+        chat_area_frame.pack(fill="both", expand=True, pady=10, padx=5)
+        ChatBox.create_chat_area(chat_area_frame)
+
+        # Control buttons at bottom of chat box
+        controls_frame = tk.Frame(chat_box_frame, bg="#2C3E50")
+        controls_frame.pack(fill="x", pady=10, padx=5)
+
+        # Leave Room button
         tk.Button(
-            game_room_frame,
+            controls_frame,
             text="Leave Room",
-            command=self.init_main_menu,  # Go back to the main menu
+            command=self.init_main_menu,
             font=("Arial", 12),
             bg="#E74C3C",
-            fg="white"
-        ).place(relx=0.85, rely=0.9)
+            fg="white",
+            width=15
+        ).pack(side=tk.LEFT, padx=5)
 
+        # Start Game button (only for host)
         if is_host:
             start_button = tk.Button(
-                game_room_frame,
+                controls_frame,
                 text="Start Game",
                 command=lambda: self.start_game(start_button),
                 font=("Arial", 12),
                 bg="#27AE60",
-                fg="white"
+                fg="white",
+                width=15
             )
-            start_button.place(relx=0.7, rely=0.9)
+            start_button.pack(side=tk.RIGHT, padx=5)
 
-    # bunların yeri burası değil!!!
+    def update_player_count(self, count):
+        """
+        Updates the player count display and indicators
+
+        Parameters:
+        count (int): Current number of players in the room
+        """
+        if hasattr(self, 'player_count_label'):
+            self.player_count_label.config(text=f"Players: {count}/4")
+
+            # Update indicators
+            for i in range(4):
+                if i < count:
+                    self.player_indicators[i].configure(text="●", fg="#27AE60")  # Filled circle for active players
+                else:
+                    self.player_indicators[i].configure(text="○", fg="#95A5A6")
+
+                    # bunların yeri burası değil!!!
     def start_game(self, start_button):
         """
         Starts the game and hides the Start Game button.
