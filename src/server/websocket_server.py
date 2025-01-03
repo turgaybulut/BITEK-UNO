@@ -6,6 +6,7 @@ import websockets
 from websockets.asyncio.client import ClientConnection
 from websockets.exceptions import ConnectionClosed
 from server.event_manager import EventManager
+from server.logger import server_logger, Direction
 from common.network_protocol import MessageType
 
 
@@ -75,13 +76,16 @@ class WebSocketServer:
     async def send_to_client(self, client_id: str, message: Dict[str, Any]) -> None:
         if client_id in self.clients:
             try:
+                server_logger.log_message(
+                    Direction.OUTGOING, message["type"], client_id
+                )
                 await self.clients[client_id].ws.send(json.dumps(message))
             except Exception:
                 await self._handle_client_disconnect(client_id)
 
     async def _handle_connection(self, websocket: ClientConnection):
         client_id = str(id(websocket))
-
+        server_logger.log_connection(client_id)
         try:
             self.clients[client_id] = ClientSession(ws=websocket, player_id="")
             print(f"New connection: {client_id}")
@@ -121,6 +125,7 @@ class WebSocketServer:
             )
             return
 
+        server_logger.log_message(Direction.INCOMING, msg_type, client_id)
         if msg_type == MessageType.AUTHENTICATE.name:
             await self._handle_authentication(client_id, message)
         elif not self.clients[client_id].is_authenticated:

@@ -2,6 +2,7 @@ from typing import Optional, Dict, Any
 import asyncio
 from uuid import uuid4
 from client.websocket_client import WebSocketClient
+from client.logger import ClientLogger, Direction
 from server.event_manager import EventManager
 from common.network_protocol import (
     MessageType,
@@ -24,6 +25,7 @@ class GameClient:
         self.ws_client = WebSocketClient(server_url, self.event_manager)
         self.current_room_id: Optional[str] = None
         self.current_game_state: Optional[GameState] = None
+        self.logger = ClientLogger(player_name)
         self._setup_event_handlers()
 
     def _setup_event_handlers(self) -> None:
@@ -70,11 +72,13 @@ class GameClient:
 
     async def connect(self) -> bool:
         if await self.ws_client.connect():
+            self.logger.log_connection(self.ws_client.uri)
             await self._authenticate()
             return True
         return False
 
     async def disconnect(self) -> None:
+        self.logger.log_connection(self.ws_client.uri, False)
         await self.ws_client.disconnect()
 
     async def create_room(self) -> None:
@@ -117,6 +121,7 @@ class GameClient:
         if not self.current_room_id:
             return
 
+        self.logger.log_message(Direction.SEND, "PLAY_CARD", self.current_room_id)
         message: PlayCardMessage = {
             "type": MessageType.PLAY_CARD.name,
             "room_id": self.current_room_id,
@@ -185,14 +190,17 @@ class GameClient:
             await self.event_manager.emit("room_closed", data)
 
     async def _handle_game_state(self, data: Dict[str, Any]) -> None:
+        self.logger.log_message(Direction.RECEIVE, "GAME_STATE", self.current_room_id)
         self.current_game_state = data["state"]
         await self.event_manager.emit("game_state_updated", data)
 
     async def _handle_game_started(self, data: Dict[str, Any]) -> None:
+        self.logger.log_game_event("Game Started")
         self.current_game_state = data["state"]
         await self.event_manager.emit("game_started", data)
 
     async def _handle_game_ended(self, data: Dict[str, Any]) -> None:
+        self.logger.log_game_event("Game Ended")
         self.current_game_state = data["state"]
         await self.event_manager.emit("game_ended", data)
 
@@ -200,6 +208,7 @@ class GameClient:
         await self.event_manager.emit("chat_message_received", data)
 
     async def _handle_error(self, data: Dict[str, Any]) -> None:
+        self.logger.log_error(data["message"])
         await self.event_manager.emit("error", data)
 
     async def _handle_player_disconnected(self, data: Dict[str, Any]) -> None:
