@@ -1,9 +1,8 @@
-from typing import Optional, Dict, Any, Callable, Awaitable
+from typing import Optional, Dict, Any
 import json
 import asyncio
 import websockets
 from websockets.asyncio.client import ClientConnection
-from common.network_protocol import MessageType
 from server.event_manager import EventManager
 
 
@@ -13,9 +12,6 @@ class WebSocketClient:
         self.event_manager = event_manager
         self.websocket: Optional[ClientConnection] = None
         self.connected = False
-        self._message_handlers: Dict[
-            str, Callable[[Dict[str, Any]], Awaitable[None]]
-        ] = {}
 
     async def connect(self) -> bool:
         try:
@@ -53,14 +49,6 @@ class WebSocketClient:
             await self.disconnect()
             raise
 
-    def register_handler(
-        self, message_type: str, handler: Callable[[Dict[str, Any]], Awaitable[None]]
-    ) -> None:
-        self._message_handlers[message_type] = handler
-
-    def unregister_handler(self, message_type: str) -> None:
-        self._message_handlers.pop(message_type, None)
-
     async def _message_loop(self) -> None:
         if not self.websocket:
             return
@@ -73,9 +61,6 @@ class WebSocketClient:
 
                     if message_type:
                         await self.event_manager.emit(f"message_{message_type}", data)
-
-                        if message_type in self._message_handlers:
-                            await self._message_handlers[message_type](data)
                 except json.JSONDecodeError:
                     print(f"Invalid JSON received: {message}")
                     continue
