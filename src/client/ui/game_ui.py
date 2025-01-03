@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, simpledialog
 from PIL import Image, ImageTk
 import os
 import random
@@ -13,7 +13,8 @@ class UnoGame:
     def __init__(self, root):
         self.root = root
         self.root.title("UNO Game")
-        self.root.geometry("1024x768")
+        self.root.geometry("1024x700")
+        self.username = ""
 
         self.game_rooms = [
             {"id": "1234", "players": 2, "max_players": 4, "status": "Waiting"},
@@ -21,7 +22,7 @@ class UnoGame:
             {"id": "9012", "players": 3, "max_players": 4, "status": "Waiting"}
         ]
 
-        self.init_main_menu()
+        self.init_login_screen()
 
     def setup_background(self):
         try:
@@ -33,6 +34,59 @@ class UnoGame:
         except Exception as e:
             print(f"Could not load background image: {e}")
             self.root.configure(bg="#2C3E50")
+
+    def init_login_screen(self):
+        """Initialize the username input screen"""
+        self.clear_screen()
+        self.setup_background()
+
+        login_frame = tk.Frame(self.root, bg="#2C3E50", highlightthickness=2)
+        login_frame.place(relx=0.3, rely=0.3, relwidth=0.4, relheight=0.4)
+
+        title = tk.Label(
+            login_frame,
+            text="Welcome to UNO!",
+            font=("Arial", 24, "bold"),
+            bg="#2C3E50",
+            fg="white"
+        )
+        title.pack(pady=20)
+
+        username_label = tk.Label(
+            login_frame,
+            text="Enter your username:",
+            font=("Arial", 14),
+            bg="#2C3E50",
+            fg="white"
+        )
+        username_label.pack(pady=10)
+
+        self.username_entry = tk.Entry(
+            login_frame,
+            font=("Arial", 14),
+            justify='center'
+        )
+        self.username_entry.pack(pady=10)
+
+        submit_button = tk.Button(
+            login_frame,
+            text="Start",
+            command=self.submit_username,
+            font=("Arial", 14),
+            bg="#27AE60",
+            fg="white",
+            width=15
+        )
+        submit_button.pack(pady=20)
+
+    def submit_username(self):
+        username = self.username_entry.get().strip()
+        if not username:
+            messagebox.showerror("Error", "Please enter a username")
+            return
+
+        self.username = username
+        self.init_main_menu()
 
     def init_main_menu(self):
         """
@@ -124,7 +178,7 @@ class UnoGame:
             button_frame,
             text="Join Private Room",
             font=("Arial", 12),
-            #command=self.join_private_room,  # Join Private Room Logic
+            command=self.prompt_join_room,  # Join Private Room Logic
             bg="#2980B9",
             fg="white",
             width=20
@@ -183,22 +237,24 @@ class UnoGame:
         ).place(relx=0.85, rely=0.9)
 
         if is_host:
-            tk.Button(
+            start_button = tk.Button(
                 game_room_frame,
                 text="Start Game",
-                command=self.start_game,  # Add game-starting logic here
+                command=lambda: self.start_game(start_button),
                 font=("Arial", 12),
                 bg="#27AE60",
                 fg="white"
-            ).place(relx=0.7, rely=0.9)
+            )
+            start_button.place(relx=0.7, rely=0.9)
 
     # bunların yeri burası değil!!!
-    def start_game(self):
+    def start_game(self, start_button):
         """
-        Starts the game (placeholder logic).
+        Starts the game and hides the Start Game button.
         """
         messagebox.showinfo("Game Started", "The game has begun!")
         print("Game logic to be implemented.")
+        start_button.destroy()
 
     def create_game_room(self):
         self.room_code = str(random.randint(1000, 9999))
@@ -207,3 +263,22 @@ class UnoGame:
     def join_specific_room(self, room_id):
         self.room_code = room_id
         self.init_game_room()
+
+    def join_private_room(self, room_id):
+        """
+        Joins a specific room if it exists.
+        """
+        room = next((r for r in self.game_rooms if r["id"] == room_id), None)
+        if room:
+            self.room_code = room_id
+            self.init_game_room()
+        else:
+            messagebox.showerror("Error", "Room not found!")
+
+    def prompt_join_room(self):
+        """
+        Prompts the user for a room ID and attempts to join it.
+        """
+        room_id = tk.simpledialog.askstring("Join Room", "Enter the Room ID:")
+        if room_id:
+            self.join_private_room(room_id)
