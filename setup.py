@@ -1,13 +1,17 @@
-from setuptools import setup, find_namespace_packages
+from setuptools import setup, find_packages
 
 setup(
-    name="BITEK-UNO",
+    name="BITEK_UNO",
     version="1.0.0",
-    packages=find_namespace_packages(include=["client.*", "server.*", "common.*"]),
     package_dir={"": "src"},
+    packages=find_packages(where="src", exclude=["scripts*"]),
     python_requires=">=3.10",
     install_requires=[
         "websockets",
         "asyncio",
+    ],
+    scripts=[
+        "scripts/run_client.py",
+        "scripts/run_server.py",
     ],
 )

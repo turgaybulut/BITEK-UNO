@@ -34,9 +34,12 @@ class WebSocketServer:
             self.port,
             ping_interval=30,
             ping_timeout=10,
+            close_timeout=10,
+            max_size=10 * 1024 * 1024,
+            compression=None,
+            max_queue=32,
         )
         print(f"Server started at ws://{self.host}:{self.port}")
-        # await self.server.wait_closed()
 
     async def stop(self):
         if self.server:
@@ -67,10 +70,10 @@ class WebSocketServer:
 
     async def _handle_connection(self, websocket: ClientConnection):
         client_id = str(id(websocket))
-        self.clients[client_id] = ClientSession(ws=websocket, player_id="")
-        print(f"New connection: {client_id}")
 
         try:
+            self.clients[client_id] = ClientSession(ws=websocket, player_id="")
+            print(f"New connection: {client_id}")
             async for message in websocket:
                 try:
                     data = json.loads(message)
@@ -84,11 +87,14 @@ class WebSocketServer:
                         },
                     )
                 except Exception as e:
+                    print(f"Error processing message: {e}")
                     await self.send_to_client(
                         client_id, {"type": MessageType.ERROR.name, "message": str(e)}
                     )
-        except ConnectionClosed:
-            await self._handle_client_disconnect(client_id)
+        except websockets.exceptions.ConnectionClosed:
+            print(f"Client disconnected (normal): {client_id}")
+        except Exception as e:
+            print(f"Client disconnected (error): {client_id} - {str(e)}")
         finally:
             await self._cleanup_client(client_id)
 
@@ -156,10 +162,16 @@ class WebSocketServer:
     async def _cleanup_client(self, client_id: str):
         if client_id in self.clients:
             try:
+                session = self.clients[client_id]
+                if session.room_id:
+                    await self.event_manager.emit(
+                        "player_disconnected", session.player_id, session.room_id
+                    )
                 await self.clients[client_id].ws.close()
             except:
                 pass
-            del self.clients[client_id]
+            finally:
+                del self.clients[client_id]
 
     def add_to_room(self, client_id: str, room_id: str):
         if client_id not in self.clients:
