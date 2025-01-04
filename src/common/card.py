@@ -33,15 +33,12 @@ class Card:
         if current_color:
             return self.color == current_color
 
-        return (
-            self.color == other.color
-            or (
-                self.type == other.type
-                and self.type == CardType.NUMBER
-                and self.value == other.value
-            )
-            or (self.type == other.type and self.type != CardType.NUMBER)
-        )
+        if self.type == other.type:
+            if self.type == CardType.NUMBER:
+                return self.value == other.value
+            return True
+
+        return False
 
     def get_score_value(self) -> int:
         if self.type == CardType.NUMBER:
