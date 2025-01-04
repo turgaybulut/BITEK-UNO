@@ -4,6 +4,8 @@ from uuid import uuid4
 import time
 from common.game import Game, Player, GameState
 from common.network_protocol import MessageType
+from common.card import Card
+from common.card_enums import CardColor, CardType
 from server.event_manager import EventManager
 
 
@@ -34,37 +36,39 @@ class GameRoom:
     def player_count(self) -> int:
         return len(self.game._players)
 
-    def add_player(self, player: Player) -> bool:
+    async def add_player(self, player: Player) -> bool:
         try:
             if not self.is_full:
                 self.game.add_player(player)
-                self._emit_room_update()
+                await self._emit_room_update()
                 return True
             return False
         except Exception:
             return False
 
-    def remove_player(self, player_id: str) -> None:
+    async def remove_player(self, player_id: str) -> None:
         self.game.remove_player(player_id)
         if self.player_count == 0:
-            self._emit_room_closed()
+            await self._emit_room_closed()
         else:
-            self._emit_room_update()
+            await self._emit_room_update()
 
-    def start_game(self) -> bool:
+    async def start_game(self) -> bool:
         try:
             if self.player_count >= self.game.MIN_PLAYERS:
                 self.game.start_game()
-                self._emit_game_started()
+                await self._emit_game_started()
                 return True
             return False
         except Exception:
             return False
 
-    def add_chat_message(self, player_id: str, player_name: str, content: str) -> None:
+    async def add_chat_message(
+        self, player_id: str, player_name: str, content: str
+    ) -> None:
         message = ChatMessage(player_id, player_name, content)
         self.chat_history.append(message)
-        self._emit_chat_message(message)
+        await self._emit_chat_message(message)
 
     def get_game_state(self) -> Dict[str, Any]:
         game_state = self.game.get_game_state()
@@ -81,30 +85,44 @@ class GameRoom:
             "state": game_state,
         }
 
-    def handle_player_action(self, player_id: str, action: str, data: dict) -> bool:
+    async def handle_player_action(
+        self, player_id: str, action: str, data: dict
+    ) -> bool:
         try:
             match action:
                 case "play_card":
+                    card = Card.from_dict(data["card"])
+                    if card.type in [CardType.WILD, CardType.WILD_DRAW_FOUR]:
+                        chosen_color = data.get("chosen_color")
+                        if not chosen_color:
+                            return False
+
                     self.game.play_card(
-                        player_id, data["card"], data.get("chosen_color")
+                        player_id,
+                        card,
+                        (
+                            CardColor[data["chosen_color"]]
+                            if data.get("chosen_color")
+                            else None
+                        ),
                     )
 
                     if self.game.state == GameState.FINISHED:
-                        self._emit_game_ended()
+                        await self._emit_game_ended()
 
                 case "draw_card":
                     self.game.draw_card(player_id)
                 case _:
                     return False
 
-            self._emit_game_update()
+            await self._emit_game_update()
             return True
         except Exception:
             return False
 
-    def _emit_room_update(self) -> None:
+    async def _emit_room_update(self) -> None:
         if self.event_manager:
-            self.event_manager.emit(
+            await self.event_manager.emit(
                 "room_update",
                 {
                     "type": MessageType.GAME_STATE.name,
@@ -113,9 +131,9 @@ class GameRoom:
                 },
             )
 
-    def _emit_game_update(self) -> None:
+    async def _emit_game_update(self) -> None:
         if self.event_manager:
-            self.event_manager.emit(
+            await self.event_manager.emit(
                 "game_update",
                 {
                     "type": MessageType.GAME_STATE.name,
@@ -124,9 +142,9 @@ class GameRoom:
                 },
             )
 
-    def _emit_game_started(self) -> None:
+    async def _emit_game_started(self) -> None:
         if self.event_manager:
-            self.event_manager.emit(
+            await self.event_manager.emit(
                 "game_started",
                 {
                     "type": MessageType.GAME_STARTED.name,
@@ -135,10 +153,10 @@ class GameRoom:
                 },
             )
 
-    def _emit_game_ended(self) -> None:
+    async def _emit_game_ended(self) -> None:
         if self.event_manager:
             winner = self.game.get_winner()
-            self.event_manager.emit(
+            await self.event_manager.emit(
                 "game_ended",
                 {
                     "type": MessageType.GAME_END.name,
@@ -148,9 +166,9 @@ class GameRoom:
                 },
             )
 
-    def _emit_chat_message(self, message: ChatMessage) -> None:
+    async def _emit_chat_message(self, message: ChatMessage) -> None:
         if self.event_manager:
-            self.event_manager.emit(
+            await self.event_manager.emit(
                 "chat_message",
                 {
                     "type": MessageType.CHAT_MESSAGE.name,
@@ -162,9 +180,9 @@ class GameRoom:
                 },
             )
 
-    def _emit_room_closed(self) -> None:
+    async def _emit_room_closed(self) -> None:
         if self.event_manager:
-            self.event_manager.emit(
+            await self.event_manager.emit(
                 "room_closed",
                 {"type": MessageType.ROOM_CLOSED.name, "room_id": self.room_id},
             )

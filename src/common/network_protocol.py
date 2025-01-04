@@ -22,7 +22,6 @@ class MessageType(Enum):
     GAME_STATE = auto()  # Server -> Client: Current game state
     PLAY_CARD = auto()  # Client -> Server: Play a card
     DRAW_CARD = auto()  # Client -> Server: Draw a card
-    COLOR_SELECTION = auto()  # Client -> Server: Select color for wild card
     GAME_END = auto()  # Server -> Client: Game has ended
 
     # Chat
@@ -34,6 +33,10 @@ class MessageType(Enum):
 
     # Error Handling
     ERROR = auto()  # Server -> Client: Error message
+
+    # Room listing
+    LIST_ROOMS = auto()  # Client -> Server: Request room list
+    ROOM_LIST = auto()  # Server -> Client: Room list response
 
 
 class PlayerState(TypedDict):
@@ -54,6 +57,13 @@ class GameState(TypedDict):
     deck_count: int  # Number of cards remaining in deck
     players: List[PlayerState]  # List of all players
     your_hand: Optional[List[Dict]]  # Current player's cards (if applicable)
+
+
+class RoomInfo(TypedDict):
+    room_id: str
+    player_count: int
+    max_players: int
+    state: str
 
 
 # Authentication Messages
@@ -140,13 +150,6 @@ class DrawCardMessage(TypedDict):
     player_id: str  # Player drawing
 
 
-class ColorSelectionMessage(TypedDict):
-    type: str  # MessageType.COLOR_SELECTION
-    room_id: str  # Room ID
-    player_id: str  # Player selecting
-    color: str  # Selected color
-
-
 class GameEndMessage(TypedDict):
     type: str  # MessageType.GAME_END
     room_id: str  # Room ID
@@ -177,6 +180,15 @@ class ErrorMessage(TypedDict):
     message: str  # Error description
 
 
+class ListRoomsMessage(TypedDict):
+    type: str  # MessageType.LIST_ROOMS
+
+
+class RoomListMessage(TypedDict):
+    type: str  # MessageType.ROOM_LIST
+    rooms: List[RoomInfo]
+
+
 # Union type for all possible messages
 NetworkMessage = Union[
     AuthenticateMessage,
@@ -193,9 +205,10 @@ NetworkMessage = Union[
     GameStateMessage,
     PlayCardMessage,
     DrawCardMessage,
-    ColorSelectionMessage,
     GameEndMessage,
     ChatMessage,
     PlayerConnectionMessage,
     ErrorMessage,
+    ListRoomsMessage,
+    RoomListMessage,
 ]

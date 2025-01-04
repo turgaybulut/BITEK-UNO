@@ -1,0 +1,1 @@
+web: PYTHONPATH=$PYTHONPATH:./src python scripts/run_server.py

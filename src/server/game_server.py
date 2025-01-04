@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Dict, List, Any
 import asyncio
 from server.event_manager import EventManager
 from server.websocket_server import WebSocketServer
@@ -43,9 +43,14 @@ class GameServer:
         self.event_manager.on(
             f"message_{MessageType.CHAT_MESSAGE.name}", self._handle_chat_message
         )
+        self.event_manager.on(
+            f"message_{MessageType.LIST_ROOMS.name}", self._handle_list_rooms
+        )
         self.event_manager.on("player_disconnected", self._handle_player_disconnect)
         self.event_manager.on("room_update", self._handle_room_update)
         self.event_manager.on("game_update", self._handle_game_update)
+        self.event_manager.on("game_started", self._handle_game_started)
+        self.event_manager.on("game_ended", self._handle_game_ended)
         self.event_manager.on("chat_message", self._handle_chat_broadcast)
         self.event_manager.on("room_closed", self._handle_room_closed)
 
@@ -60,7 +65,7 @@ class GameServer:
         client_session = self.ws_server.clients.get(client_id)
         if client_session:
             player = Player(player_id, client_session.name)
-            if room.add_player(player):
+            if await room.add_player(player):
                 self.player_room_map[player_id] = room.room_id
                 self.ws_server.add_to_room(client_id, room.room_id)
 
@@ -72,6 +77,7 @@ class GameServer:
                         "state": room.get_player_state(player_id)["state"],
                     },
                 )
+                await self._broadcast_room_list()
 
     async def _handle_join_room(self, client_id: str, message: dict):
         room_id = message.get("room_id")
@@ -89,7 +95,7 @@ class GameServer:
 
         if client_session:
             player = Player(player_id, client_session.name)
-            if room.add_player(player):
+            if await room.add_player(player):
                 self.player_room_map[player_id] = room.room_id
                 self.ws_server.add_to_room(client_id, room.room_id)
 
@@ -101,6 +107,7 @@ class GameServer:
                         "state": room.get_player_state(player_id)["state"],
                     },
                 )
+                await self._broadcast_room_list()
             else:
                 await self.ws_server.send_to_client(
                     client_id,
@@ -113,7 +120,7 @@ class GameServer:
 
         if room_id in self.active_rooms and player_id:
             room = self.active_rooms[room_id]
-            room.remove_player(player_id)
+            await room.remove_player(player_id)
             self.ws_server.remove_from_room(client_id)
             self.player_room_map.pop(player_id, None)
 
@@ -123,13 +130,15 @@ class GameServer:
 
             if room.player_count == 0:
                 await self._handle_room_closed({"room_id": room_id})
+            await self._broadcast_room_list()
 
     async def _handle_start_game(self, client_id: str, message: dict):
         room_id = message.get("room_id")
         if room_id in self.active_rooms:
             room = self.active_rooms[room_id]
-            if room.start_game():
+            if await room.start_game():
                 # Game started successfully - notification will be handled by room events
+                await self._broadcast_room_list()
                 pass
             else:
                 await self.ws_server.send_to_client(
@@ -148,7 +157,7 @@ class GameServer:
 
         if room_id in self.active_rooms and player_id:
             room = self.active_rooms[room_id]
-            success = room.handle_player_action(
+            success = await room.handle_player_action(
                 player_id, "play_card", {"card": card, "chosen_color": chosen_color}
             )
 
@@ -164,7 +173,7 @@ class GameServer:
 
         if room_id in self.active_rooms and player_id:
             room = self.active_rooms[room_id]
-            room.handle_player_action(player_id, "draw_card", {})
+            await room.handle_player_action(player_id, "draw_card", {})
 
     async def _handle_chat_message(self, client_id: str, message: dict):
         room_id = message.get("room_id")
@@ -175,12 +184,12 @@ class GameServer:
             room = self.active_rooms[room_id]
             client_session = self.ws_server.clients.get(client_id)
             if client_session:
-                room.add_chat_message(player_id, client_session.name, content)
+                await room.add_chat_message(player_id, client_session.name, content)
 
     async def _handle_player_disconnect(self, player_id: str, room_id: str):
         if room_id in self.active_rooms:
             room = self.active_rooms[room_id]
-            room.remove_player(player_id)
+            await room.remove_player(player_id)
 
             await self.ws_server.broadcast_to_room(
                 room_id,
@@ -193,15 +202,24 @@ class GameServer:
 
     async def _handle_room_update(self, data: dict):
         room_id = data["room_id"]
-        if room_id in self.active_rooms:
-            await self.ws_server.broadcast_to_room(
-                room_id,
-                {
-                    "type": MessageType.GAME_STATE.name,
-                    "room_id": room_id,
-                    "state": data["state"],
-                },
-            )
+        if room_id not in self.active_rooms:
+            return
+
+        room = self.active_rooms[room_id]
+        room_clients = self.ws_server.room_clients.get(room_id, set())
+
+        for client_id in room_clients:
+            client_session = self.ws_server.clients.get(client_id)
+            if client_session and client_session.player_id:
+                player_state = room.get_player_state(client_session.player_id)
+                await self.ws_server.send_to_client(
+                    client_id,
+                    {
+                        "type": MessageType.GAME_STATE.name,
+                        "room_id": room_id,
+                        "state": player_state["state"],
+                    },
+                )
 
     async def _handle_game_update(self, data: dict):
         await self._handle_room_update(data)
@@ -232,3 +250,68 @@ class GameServer:
             self.player_room_map = {
                 pid: rid for pid, rid in self.player_room_map.items() if rid != room_id
             }
+        await self._broadcast_room_list()
+
+    def get_room_list(self) -> List[Dict[str, Any]]:
+        return [
+            {
+                "room_id": room_id,
+                "player_count": room.player_count,
+                "max_players": room.game.MAX_PLAYERS,
+                "state": room.game.state.name,
+            }
+            for room_id, room in self.active_rooms.items()
+        ]
+
+    async def _handle_list_rooms(self, client_id: str, _: dict):
+        room_list = self.get_room_list()
+        await self.ws_server.send_to_client(
+            client_id, {"type": MessageType.ROOM_LIST.name, "rooms": room_list}
+        )
+
+    async def _broadcast_room_list(self):
+        room_list = self.get_room_list()
+        await self.ws_server.broadcast_to_all(
+            {"type": MessageType.ROOM_LIST.name, "rooms": room_list}
+        )
+
+    async def _handle_game_started(self, data: dict):
+        room_id = data["room_id"]
+        if room_id in self.active_rooms:
+            room = self.active_rooms[room_id]
+            room_clients = self.ws_server.room_clients.get(room_id, set())
+
+            for client_id in room_clients:
+                client_session = self.ws_server.clients.get(client_id)
+                if client_session and client_session.player_id:
+                    player_state = room.get_player_state(client_session.player_id)
+                    await self.ws_server.send_to_client(
+                        client_id,
+                        {
+                            "type": MessageType.GAME_STARTED.name,
+                            "room_id": room_id,
+                            "state": player_state["state"],
+                        },
+                    )
+            await self._broadcast_room_list()
+
+    async def _handle_game_ended(self, data: dict):
+        room_id = data["room_id"]
+        if room_id in self.active_rooms:
+            room = self.active_rooms[room_id]
+            room_clients = self.ws_server.room_clients.get(room_id, set())
+
+            for client_id in room_clients:
+                client_session = self.ws_server.clients.get(client_id)
+                if client_session and client_session.player_id:
+                    player_state = room.get_player_state(client_session.player_id)
+                    await self.ws_server.send_to_client(
+                        client_id,
+                        {
+                            "type": MessageType.GAME_END.name,
+                            "room_id": room_id,
+                            "state": player_state["state"],
+                            "winner_id": data.get("winner_id"),
+                        },
+                    )
+            await self._broadcast_room_list()

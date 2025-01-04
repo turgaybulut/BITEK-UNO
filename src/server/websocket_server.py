@@ -6,6 +6,7 @@ import websockets
 from websockets.asyncio.client import ClientConnection
 from websockets.exceptions import ConnectionClosed
 from server.event_manager import EventManager
+from server.logger import server_logger, Direction
 from common.network_protocol import MessageType
 
 
@@ -34,9 +35,12 @@ class WebSocketServer:
             self.port,
             ping_interval=30,
             ping_timeout=10,
+            close_timeout=10,
+            max_size=10 * 1024 * 1024,
+            compression=None,
+            max_queue=32,
         )
         print(f"Server started at ws://{self.host}:{self.port}")
-        # await self.server.wait_closed()
 
     async def stop(self):
         if self.server:
@@ -58,19 +62,33 @@ class WebSocketServer:
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
 
+    async def broadcast_to_all(self, message: Dict[str, Any]) -> None:
+        msg_str = json.dumps(message)
+        tasks = []
+        for client_id, client in self.clients.items():
+            try:
+                tasks.append(client.ws.send(msg_str))
+            except Exception:
+                continue
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+
     async def send_to_client(self, client_id: str, message: Dict[str, Any]) -> None:
         if client_id in self.clients:
             try:
+                server_logger.log_message(
+                    Direction.OUTGOING, message["type"], client_id
+                )
                 await self.clients[client_id].ws.send(json.dumps(message))
             except Exception:
                 await self._handle_client_disconnect(client_id)
 
     async def _handle_connection(self, websocket: ClientConnection):
         client_id = str(id(websocket))
-        self.clients[client_id] = ClientSession(ws=websocket, player_id="")
-        print(f"New connection: {client_id}")
-
+        server_logger.log_connection(client_id)
         try:
+            self.clients[client_id] = ClientSession(ws=websocket, player_id="")
+            print(f"New connection: {client_id}")
             async for message in websocket:
                 try:
                     data = json.loads(message)
@@ -84,11 +102,14 @@ class WebSocketServer:
                         },
                     )
                 except Exception as e:
+                    print(f"Error processing message: {e}")
                     await self.send_to_client(
                         client_id, {"type": MessageType.ERROR.name, "message": str(e)}
                     )
-        except ConnectionClosed:
-            await self._handle_client_disconnect(client_id)
+        except websockets.exceptions.ConnectionClosed:
+            print(f"Client disconnected (normal): {client_id}")
+        except Exception as e:
+            print(f"Client disconnected (error): {client_id} - {str(e)}")
         finally:
             await self._cleanup_client(client_id)
 
@@ -104,6 +125,7 @@ class WebSocketServer:
             )
             return
 
+        server_logger.log_message(Direction.INCOMING, msg_type, client_id)
         if msg_type == MessageType.AUTHENTICATE.name:
             await self._handle_authentication(client_id, message)
         elif not self.clients[client_id].is_authenticated:
@@ -156,10 +178,16 @@ class WebSocketServer:
     async def _cleanup_client(self, client_id: str):
         if client_id in self.clients:
             try:
+                session = self.clients[client_id]
+                if session.room_id:
+                    await self.event_manager.emit(
+                        "player_disconnected", session.player_id, session.room_id
+                    )
                 await self.clients[client_id].ws.close()
             except:
                 pass
-            del self.clients[client_id]
+            finally:
+                del self.clients[client_id]
 
     def add_to_room(self, client_id: str, room_id: str):
         if client_id not in self.clients:
