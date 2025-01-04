@@ -49,6 +49,8 @@ class GameServer:
         self.event_manager.on("player_disconnected", self._handle_player_disconnect)
         self.event_manager.on("room_update", self._handle_room_update)
         self.event_manager.on("game_update", self._handle_game_update)
+        self.event_manager.on("game_started", self._handle_game_started)
+        self.event_manager.on("game_ended", self._handle_game_ended)
         self.event_manager.on("chat_message", self._handle_chat_broadcast)
         self.event_manager.on("room_closed", self._handle_room_closed)
 
@@ -272,3 +274,44 @@ class GameServer:
         await self.ws_server.broadcast_to_all(
             {"type": MessageType.ROOM_LIST.name, "rooms": room_list}
         )
+
+    async def _handle_game_started(self, data: dict):
+        room_id = data["room_id"]
+        if room_id in self.active_rooms:
+            room = self.active_rooms[room_id]
+            room_clients = self.ws_server.room_clients.get(room_id, set())
+
+            for client_id in room_clients:
+                client_session = self.ws_server.clients.get(client_id)
+                if client_session and client_session.player_id:
+                    player_state = room.get_player_state(client_session.player_id)
+                    await self.ws_server.send_to_client(
+                        client_id,
+                        {
+                            "type": MessageType.GAME_STARTED.name,
+                            "room_id": room_id,
+                            "state": player_state["state"],
+                        },
+                    )
+            await self._broadcast_room_list()
+
+    async def _handle_game_ended(self, data: dict):
+        room_id = data["room_id"]
+        if room_id in self.active_rooms:
+            room = self.active_rooms[room_id]
+            room_clients = self.ws_server.room_clients.get(room_id, set())
+
+            for client_id in room_clients:
+                client_session = self.ws_server.clients.get(client_id)
+                if client_session and client_session.player_id:
+                    player_state = room.get_player_state(client_session.player_id)
+                    await self.ws_server.send_to_client(
+                        client_id,
+                        {
+                            "type": MessageType.GAME_END.name,
+                            "room_id": room_id,
+                            "state": player_state["state"],
+                            "winner_id": data.get("winner_id"),
+                        },
+                    )
+            await self._broadcast_room_list()
