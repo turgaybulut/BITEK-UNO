@@ -3,12 +3,12 @@ from tkinter import messagebox, simpledialog
 from PIL import Image, ImageTk
 import os
 import random
-from src.client.ui.chat_box import ChatBox
-from src.client.ui.game_board import GameBoard
-from src.client.ui.player_hand import PlayerHand
+from client.ui.chat_box import ChatBox
+from client.ui.game_board import GameBoard
+from client.ui.player_hand import PlayerHand
 
 
-class UnoGame:
+class GameUI:
     def __init__(self, root):
         self.root = root
         self.root.title("UNO Game")

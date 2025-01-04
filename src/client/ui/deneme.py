@@ -1,9 +1,9 @@
 import tkinter as tk
-from src.client.ui.game_ui import UnoGame
+from client.ui.game_ui import GameUI
 
 
 
 if __name__ == "__main__":
     root = tk.Tk()
-    game = UnoGame(root)
+    game = GameUI(root)
     root.mainloop()
