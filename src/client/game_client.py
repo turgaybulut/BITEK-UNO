@@ -88,7 +88,6 @@ class GameClient:
             "player_id": self.player_id,
         }
         await self.ws_client.send_message(message)
-        await self.request_room_list()
 
     async def join_room(self, room_id: str) -> None:
         message: JoinRoomMessage = {
@@ -109,7 +108,6 @@ class GameClient:
                 "player_id": self.player_id,
             }
         )
-        self.current_room_id = None
 
     async def start_game(self) -> None:
         if not self.current_room_id:

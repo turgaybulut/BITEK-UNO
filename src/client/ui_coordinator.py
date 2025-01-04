@@ -17,6 +17,7 @@ class UICoordinator:
         self.game_ui.set_on_create_room(self._handle_create_room)
         self.game_ui.set_on_join_room(self._handle_join_room)
         self.game_ui.set_on_leave_room(self._handle_leave_room)
+        self.game_ui.set_on_start_game(self._handle_start_game)
         self.game_ui.set_on_refresh_rooms(self._handle_refresh_rooms)
         """
         self.game_ui.on_card_played = self._handle_card_played
@@ -42,11 +43,11 @@ class UICoordinator:
         )
         self.game_client.event_manager.on("room_created", self._handle_room_created)
         self.game_client.event_manager.on("room_joined", self._handle_room_joined)
-        """
         self.game_client.event_manager.on("room_left", self._handle_room_left)
-        self.game_client.event_manager.on("room_closed", self._handle_room_closed)
-        self.game_client.event_manager.on("game_state_updated", self._handle_game_state)
         self.game_client.event_manager.on("game_started", self._handle_game_started)
+        self.game_client.event_manager.on("room_closed", self._handle_room_closed)
+        """
+        self.game_client.event_manager.on("game_state_updated", self._handle_game_state)
         self.game_client.event_manager.on("game_ended", self._handle_game_ended)
         self.game_client.event_manager.on(
             "chat_message_received", self._handle_chat_received
@@ -107,22 +108,19 @@ class UICoordinator:
         await self._handle_refresh_rooms()
 
     async def _handle_room_created(self, data: dict) -> None:
-        await self._handle_refresh_rooms()
         self.game_ui.show_game_room(is_host=True)
 
     async def _handle_room_joined(self, data: dict) -> None:
         self.game_ui.show_game_room(is_host=False)
 
     async def _handle_room_left(self, data: dict) -> None:
-        self.game_ui.clear_game_state()
-        self.game_ui.show_room_controls()
-        self.game_ui.show_notification("You have left the room")
+        self.game_ui.show_room_selection()
+        await self._handle_refresh_rooms()
 
     async def _handle_room_closed(self, data: dict) -> None:
-        self.game_ui.clear_game_state()
-        self.game_ui.show_room_controls()
-        self.game_ui.show_notification("The room has been closed")
-        await self.game_client.leave_room()
+        self.game_ui.show_error("Room has been closed")
+        self.game_ui.show_room_selection()
+        await self._handle_refresh_rooms()
 
     async def _handle_game_state(self, data: dict) -> None:
         self.game_ui.update_game_state(data["state"])
