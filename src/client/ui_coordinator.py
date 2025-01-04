@@ -13,6 +13,12 @@ class UICoordinator:
         self._setup_client_handlers()
 
     def _setup_ui_handlers(self) -> None:
+        self.game_ui.set_on_login(self._handle_login)
+        self.game_ui.set_on_create_room(self._handle_create_room)
+        self.game_ui.set_on_join_room(self._handle_join_room)
+        self.game_ui.set_on_leave_room(self._handle_leave_room)
+        self.game_ui.set_on_refresh_rooms(self._handle_refresh_rooms)
+        """
         self.game_ui.on_card_played = self._handle_card_played
         self.game_ui.on_card_drawn = self._handle_card_drawn
         self.game_ui.on_color_selected = self._handle_color_selected
@@ -21,13 +27,22 @@ class UICoordinator:
         self.game_ui.on_create_room = self._handle_create_room
         self.game_ui.on_join_room = self._handle_join_room
         self.game_ui.on_leave_room = self._handle_leave_room
+        """
 
     def _setup_client_handlers(self) -> None:
         self.game_client.event_manager.on(
             "client_authenticated", self._handle_authenticated
         )
+        self.game_client.event_manager.on(
+            "connection_closed", self._handle_connection_closed
+        )
+        self.game_client.event_manager.on("error", self._handle_error)
+        self.game_client.event_manager.on(
+            "room_list_updated", self._handle_room_list_updated
+        )
         self.game_client.event_manager.on("room_created", self._handle_room_created)
         self.game_client.event_manager.on("room_joined", self._handle_room_joined)
+        """
         self.game_client.event_manager.on("room_left", self._handle_room_left)
         self.game_client.event_manager.on("room_closed", self._handle_room_closed)
         self.game_client.event_manager.on("game_state_updated", self._handle_game_state)
@@ -42,13 +57,16 @@ class UICoordinator:
         self.game_client.event_manager.on(
             "player_reconnected", self._handle_player_reconnected
         )
-        self.game_client.event_manager.on(
-            "room_list_updated", self._handle_room_list_updated
-        )
-        self.game_client.event_manager.on("error", self._handle_error)
-        self.game_client.event_manager.on(
-            "connection_closed", self._handle_connection_closed
-        )
+        """
+
+    async def _handle_login(self, username: str):
+        try:
+            self.game_client.player_name = username
+            success = await self.game_client.connect()
+            if not success:
+                self.game_ui.show_error("Failed to connect to server")
+        except Exception as e:
+            self.game_ui.show_error(f"Connection error: {str(e)}")
 
     async def _handle_card_played(
         self, card: Card, color: Optional[CardColor] = None
@@ -81,16 +99,19 @@ class UICoordinator:
     async def _handle_leave_room(self) -> None:
         await self.game_client.leave_room()
 
+    async def _handle_refresh_rooms(self) -> None:
+        await self.game_client.request_room_list()
+
     async def _handle_authenticated(self, data: dict) -> None:
-        self.game_ui.show_room_controls()
+        self.game_ui.show_room_selection()
+        await self._handle_refresh_rooms()
 
     async def _handle_room_created(self, data: dict) -> None:
-        self.game_ui.update_room_state(data["state"])
-        self.game_ui.show_game_setup()
+        await self._handle_refresh_rooms()
+        self.game_ui.show_game_room(is_host=True)
 
     async def _handle_room_joined(self, data: dict) -> None:
-        self.game_ui.update_room_state(data["state"])
-        self.game_ui.show_game_setup()
+        self.game_ui.show_game_room(is_host=False)
 
     async def _handle_room_left(self, data: dict) -> None:
         self.game_ui.clear_game_state()
@@ -138,4 +159,3 @@ class UICoordinator:
 
     async def _handle_connection_closed(self, _: dict) -> None:
         self.game_ui.show_connection_lost()
-        self.game_ui.show_reconnect_prompt()
