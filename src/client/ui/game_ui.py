@@ -216,25 +216,42 @@ class UnoGame:
         """
         self.clear_screen()
 
-        # Create the main container for the game room
+        # Main container for the game room
         game_room_frame = tk.Frame(self.root, bg="#34495E")
         game_room_frame.place(relwidth=1, relheight=1)
 
-        # Main Game Area (Pygame Surface) - Left side
+        # Main Game Area - Left side
         game_area_frame = tk.Frame(game_room_frame, bg="#2C3E50", highlightthickness=2)
         game_area_frame.place(relx=0.02, rely=0.02, relwidth=0.66, relheight=0.96)
 
-        # Placeholder label until Pygame implementation
-        self.game_area_label = tk.Label(
-            game_area_frame,
-            text="Pygame Surface\n(Game Board + Player Hand)",
-            font=("Arial", 20),
-            bg="#2C3E50",
-            fg="white"
-        )
-        self.game_area_label.pack(expand=True)
+        # Game Board Section
+        game_board_frame = tk.Frame(game_area_frame, bg="#34495E")
+        game_board_frame.pack(side=tk.TOP, fill="both", expand=True, padx=10, pady=10)
 
-        # Chat Box Section with Room Controls - Right side
+        self.game_board = GameBoard()
+        self.game_board.create_game_board(
+            game_board_frame,
+            current_card="Red 5",  # Example card
+            players=[
+                {"name": "Player 1", "card_count": 7},
+                {"name": "Player 2", "card_count": 5}
+            ]
+        )
+
+        # Player Hand Section
+        player_hand_frame = tk.Frame(game_area_frame, bg="#34495E")
+        player_hand_frame.pack(side=tk.BOTTOM, fill="x", padx=10, pady=10)
+
+        self.player_hand = PlayerHand()
+        self.player_hand.create_hand_area(
+            player_hand_frame,
+            player_cards=["Red 5", "Blue Skip", "Yellow 7", "Green Reverse", "Wild", "Draw 4", "Yellow 2", "Blue 9"],  # Example cards
+            on_card_play=lambda card: self.play_card(card),
+            on_draw_card=self.draw_card,
+            frame_height=80
+        )
+
+        # Chat Box Section - Right side
         chat_box_frame = tk.Frame(game_room_frame, bg="#34495E", highlightthickness=2)
         chat_box_frame.place(relx=0.7, rely=0.02, relwidth=0.28, relheight=0.96)
 
@@ -256,7 +273,6 @@ class UnoGame:
         player_frame = tk.Frame(room_info, bg="#2C3E50")
         player_frame.pack(fill="x", pady=(0, 10))
 
-        # Player count display
         self.player_count_label = tk.Label(
             player_frame,
             text="Players: 1/4",  # Default value
@@ -393,3 +409,11 @@ class UnoGame:
         room_id = simpledialog.askstring("Join Room", "Enter the Room ID:")
         if room_id:
             self.join_private_room(room_id)
+
+    def play_card(self, card):
+        print(f"Played card: {card}")
+        # Add logic to handle playing a card
+
+    def draw_card(self):
+        print("Drew a card")
+        # Add logic to handle drawing a card
