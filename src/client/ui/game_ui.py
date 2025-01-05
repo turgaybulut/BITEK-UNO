@@ -1,15 +1,11 @@
 import tkinter as tk
 import asyncio
-from tkinter import messagebox, simpledialog
-from PIL import Image, ImageTk
+from tkinter import messagebox
 from typing import Callable, Optional, Coroutine, Any, List, Dict
-import os
-import random
-from client.ui.chat_box import ChatBox
-from client.ui.game_board import GameBoard
-from client.ui.player_hand import PlayerHand
 from client.ui.room_selection_section import RoomSelectionSection
 from client.ui.game_room_section import GameRoomSection
+from common.card import Card
+from common.card_enums import CardColor
 
 
 class GameUI:
@@ -25,11 +21,15 @@ class GameUI:
         self.on_refresh_rooms: Optional[Callable[[], Coroutine]] = None
         self.on_start_game: Optional[Callable[[], None]] = None
         self.on_chat_message: Optional[Callable[[str], Coroutine]] = None
+        self.on_card_played: Optional[
+            Callable[[Card, Optional[CardColor]], Coroutine]
+        ] = None
+        self.on_card_drawn: Optional[Callable[[], Coroutine]] = None
+        self.on_color_selected: Optional[Callable[[CardColor], Coroutine]] = None
 
         self.room_selection: Optional[RoomSelectionSection] = None
         self.game_room: Optional[GameRoomSection] = None
 
-        self.pending_wild_card = None
         self._setup_styles()
         self.show_login_screen()
 
@@ -99,17 +99,6 @@ class GameUI:
         if self.on_login:
             await self.on_login(username)
 
-    def setup_background(self):
-        try:
-            bg_image = Image.open("../../resources/background.png")
-            bg_image = bg_image.resize((1024, 768), Image.Resampling.LANCZOS)
-            self.bg_image_tk = ImageTk.PhotoImage(bg_image)
-            self.bg_label = tk.Label(self.root, image=self.bg_image_tk)
-            self.bg_label.place(relwidth=1, relheight=1)
-        except Exception as e:
-            print(f"Could not load background image: {e}")
-            self.root.configure(bg="#2C3E50")
-
     def show_error(self, message: str):
         messagebox.showerror("Error", message)
 
@@ -135,6 +124,9 @@ class GameUI:
         self.game_room.on_start_game = self.on_start_game
         self.game_room.on_chat_message = self.on_chat_message
         self.game_room.chat_box.on_message_sent = self.on_chat_message
+        self.game_room.on_card_played = self.on_card_played
+        self.game_room.on_card_drawn = self.on_card_drawn
+        self.game_room.on_color_selected = self.on_color_selected
 
     def add_chat_message(self, player_name: str, message: str, timestamp: float = None):
         if self.game_room and self.game_room.chat_box:
@@ -143,6 +135,14 @@ class GameUI:
     def add_system_message(self, message: str):
         if self.game_room and self.game_room.chat_box:
             self.game_room.chat_box.add_system_message(message)
+
+    def update_game_state(self, game_state: Dict[str, Any]):
+        if self.game_room:
+            self.game_room.update_game_state(game_state)
+
+    def show_winner(self, winner_name: str):
+        if self.game_room:
+            self.game_room.show_winner(winner_name)
 
     def _clear_window(self):
         for widget in self.root.winfo_children():
@@ -173,3 +173,14 @@ class GameUI:
 
     def set_on_chat_message(self, callback: Callable[[str], Coroutine]):
         self.on_chat_message = callback
+
+    def set_on_card_played(
+        self, callback: Callable[[Card, Optional[CardColor]], Coroutine]
+    ):
+        self.on_card_played = callback
+
+    def set_on_card_drawn(self, callback: Callable[[], Coroutine]):
+        self.on_card_drawn = callback
+
+    def set_on_color_selected(self, callback: Callable[[CardColor], Coroutine]):
+        self.on_color_selected = callback
