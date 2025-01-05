@@ -24,9 +24,7 @@ class GameUI:
         self.on_leave_room: Optional[Callable[[], Coroutine]] = None
         self.on_refresh_rooms: Optional[Callable[[], Coroutine]] = None
         self.on_start_game: Optional[Callable[[], None]] = None
-        self.on_card_played: Optional[Callable[[dict, Optional[str]], None]] = None
-        self.on_card_drawn: Optional[Callable[[], None]] = None
-        self.on_chat_message: Optional[Callable[[str], None]] = None
+        self.on_chat_message: Optional[Callable[[str], Coroutine]] = None
 
         self.room_selection: Optional[RoomSelectionSection] = None
         self.game_room: Optional[GameRoomSection] = None
@@ -135,6 +133,16 @@ class GameUI:
         self.game_room = GameRoomSection(self.root, self.styles, is_host)
         self.game_room.on_leave_room = self.on_leave_room
         self.game_room.on_start_game = self.on_start_game
+        self.game_room.on_chat_message = self.on_chat_message
+        self.game_room.chat_box.on_message_sent = self.on_chat_message
+
+    def add_chat_message(self, player_name: str, message: str, timestamp: float = None):
+        if self.game_room and self.game_room.chat_box:
+            self.game_room.chat_box.add_message(player_name, message, timestamp)
+
+    def add_system_message(self, message: str):
+        if self.game_room and self.game_room.chat_box:
+            self.game_room.chat_box.add_system_message(message)
 
     def _clear_window(self):
         for widget in self.root.winfo_children():
@@ -162,3 +170,6 @@ class GameUI:
 
     def set_on_refresh_rooms(self, callback: Callable[[], Coroutine]):
         self.on_refresh_rooms = callback
+
+    def set_on_chat_message(self, callback: Callable[[str], Coroutine]):
+        self.on_chat_message = callback

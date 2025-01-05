@@ -1,37 +1,98 @@
 import tkinter as tk
+from tkinter import ttk
+from typing import Optional, Callable, Coroutine
+import asyncio
+from datetime import datetime
 
 
 class ChatBox:
-    @staticmethod
-    def create_chat_area(container):
-        """
-        Creates the chat area in the game room.
-        """
-        # Chat Display
-        chat_display = tk.Text(container, height=20, width=30, state=tk.DISABLED)
-        chat_display.pack(pady=10)
+    def __init__(self, parent: tk.Widget, styles: dict):
+        self.parent = parent
+        self.styles = styles
+        self.on_message_sent: Optional[Callable[[str], Coroutine]] = None
+        self._create_widgets()
 
-        # Chat Input
-        chat_input = tk.Entry(container, width=25)
-        chat_input.pack(pady=5)
+    def _create_widgets(self):
+        self.frame = tk.Frame(self.parent, bg=self.styles["frame_bg"])
+        self.frame.pack(fill="both", expand=True, padx=5, pady=5)
 
-        # Send Button
-        tk.Button(
-            container,
+        # Messages area
+        messages_frame = tk.Frame(self.frame, bg=self.styles["frame_bg"])
+        messages_frame.pack(fill="both", expand=True)
+
+        self.messages_text = tk.Text(
+            messages_frame,
+            bg=self.styles["bg_color"],
+            fg=self.styles["fg_color"],
+            wrap=tk.WORD,
+            state="disabled",
+            height=20,
+            font=("Arial", 10),
+        )
+        self.messages_text.pack(side="left", fill="both", expand=True)
+
+        scrollbar = ttk.Scrollbar(messages_frame, command=self.messages_text.yview)
+        scrollbar.pack(side="right", fill="y")
+        self.messages_text.configure(yscrollcommand=scrollbar.set)
+
+        # Input area
+        input_frame = tk.Frame(self.frame, bg=self.styles["frame_bg"])
+        input_frame.pack(fill="x", pady=(5, 0))
+
+        self.message_entry = tk.Entry(
+            input_frame,
+            bg=self.styles["bg_color"],
+            fg=self.styles["fg_color"],
+            insertbackground=self.styles["fg_color"],
+        )
+        self.message_entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
+
+        send_button = tk.Button(
+            input_frame,
             text="Send",
-            command=lambda: ChatBox.send_chat_message(chat_input, chat_display),
-            bg="#27AE60",
-            fg="white"
-        ).pack()
+            command=lambda: asyncio.create_task(self._send_message()),
+            bg=self.styles["button_bg"],
+            fg=self.styles["button_fg"],
+        )
+        send_button.pack(side="right")
 
-    @staticmethod
-    def send_chat_message(input_widget, display_widget):
-        """
-        Sends a message to the chat area.
-        """
-        message = input_widget.get()
-        if message.strip():
-            display_widget.config(state=tk.NORMAL)
-            display_widget.insert(tk.END, f"You: {message}\n")
-            display_widget.config(state=tk.DISABLED)
-            input_widget.delete(0, tk.END)
+        # Bind Enter key to send message
+        self.message_entry.bind(
+            "<Return>", lambda e: asyncio.create_task(self._send_message())
+        )
+
+    async def _send_message(self):
+        message = self.message_entry.get().strip()
+        if message and self.on_message_sent:
+            await self.on_message_sent(message)
+            self.message_entry.delete(0, tk.END)
+        self.message_entry.focus_set()
+
+    def add_message(self, player_name: str, message: str, timestamp: float = None):
+        self.messages_text.configure(state="normal")
+
+        # Format timestamp
+        time_str = (
+            datetime.fromtimestamp(timestamp).strftime("%H:%M")
+            if timestamp
+            else datetime.now().strftime("%H:%M")
+        )
+
+        # Format message
+        formatted_message = f"[{time_str}] {player_name}: {message}\n"
+
+        self.messages_text.insert(tk.END, formatted_message)
+        self.messages_text.see(tk.END)  # Auto-scroll to bottom
+        self.messages_text.configure(state="disabled")
+
+    def add_system_message(self, message: str):
+        self.messages_text.configure(state="normal")
+        formatted_message = f"*** {message} ***\n"
+        self.messages_text.insert(tk.END, formatted_message)
+        self.messages_text.see(tk.END)
+        self.messages_text.configure(state="disabled")
+
+    def clear(self):
+        self.messages_text.configure(state="normal")
+        self.messages_text.delete(1.0, tk.END)
+        self.messages_text.configure(state="disabled")

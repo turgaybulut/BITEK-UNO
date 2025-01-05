@@ -1,6 +1,7 @@
 import tkinter as tk
-import asyncio
 from typing import Dict, Optional, Callable, Any, Coroutine
+import asyncio
+from client.ui.chat_box import ChatBox
 
 
 class GameRoomSection:
@@ -13,6 +14,7 @@ class GameRoomSection:
 
         self.on_leave_room: Optional[Callable[[], Coroutine]] = None
         self.on_start_game: Optional[Callable[[], Coroutine]] = None
+        self.on_chat_message: Optional[Callable[[str], Coroutine]] = None
 
         self._create_widgets()
 
@@ -46,13 +48,9 @@ class GameRoomSection:
             fg=self.styles["fg_color"],
         ).pack(pady=10)
 
-        # Placeholder for chat
-        tk.Label(
-            side_panel,
-            text="Chat Area\n(To be implemented)",
-            bg=self.styles["frame_bg"],
-            fg=self.styles["fg_color"],
-        ).pack(expand=True)
+        # Chat Box
+        self.chat_box = ChatBox(side_panel, self.styles)
+        self.chat_box.on_message_sent = self.on_chat_message
 
         # Control buttons
         controls = tk.Frame(side_panel, bg=self.styles["frame_bg"])
