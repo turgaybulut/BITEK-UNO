@@ -13,6 +13,7 @@ from common.network_protocol import (
     PlayCardMessage,
     DrawCardMessage,
     ChatMessage,
+    ListRoomsMessage,
 )
 from common.card import Card
 
@@ -107,7 +108,6 @@ class GameClient:
                 "player_id": self.player_id,
             }
         )
-        self.current_room_id = None
 
     async def start_game(self) -> None:
         if not self.current_room_id:
@@ -154,6 +154,10 @@ class GameClient:
             "content": content,
             "timestamp": None,
         }
+        await self.ws_client.send_message(message)
+
+    async def request_room_list(self) -> None:
+        message: ListRoomsMessage = {"type": MessageType.LIST_ROOMS.name}
         await self.ws_client.send_message(message)
 
     async def _authenticate(self) -> None:
