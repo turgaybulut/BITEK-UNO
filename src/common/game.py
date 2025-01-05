@@ -98,7 +98,6 @@ class Game:
 
         if initial_card:
             self._discard_pile.append(initial_card)
-            self._current_color = initial_card.color
 
         self._state = GameState.PLAYING
         self._current_player_index = 0
