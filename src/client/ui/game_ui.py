@@ -12,7 +12,7 @@ class GameUI:
     def __init__(self, root):
         self.root = root
         self.root.title("UNO Game")
-        self.root.geometry("1024x700")
+        self.root.state("zoomed")
 
         self.on_login: Optional[Callable[[str], Coroutine]] = None
         self.on_create_room: Optional[Callable[[], Coroutine]] = None
@@ -102,6 +102,9 @@ class GameUI:
     def show_error(self, message: str):
         messagebox.showerror("Error", message)
 
+    def show_info(self, message: str):
+        messagebox.showinfo("Info", message)
+
     def show_connection_lost(self):
         self.show_error("Connection to server lost!")
         self.show_login_screen()
@@ -143,6 +146,7 @@ class GameUI:
     def show_winner(self, winner_name: str):
         if self.game_room:
             self.game_room.show_winner(winner_name)
+            self.show_info(f"{winner_name} has won the game!")
 
     def _clear_window(self):
         for widget in self.root.winfo_children():

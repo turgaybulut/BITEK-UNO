@@ -37,8 +37,11 @@ class GameBoard:
         self.board_frame = tk.Frame(self.frame, bg=self.styles["frame_bg"])
         self.board_frame.pack(fill="both", expand=True, padx=10)
 
+        self.center_frame = tk.Frame(self.board_frame, bg=self.styles["frame_bg"])
+        self.center_frame.place(relx=0.5, rely=0.5, anchor="center")
+
         self.current_color_frame = tk.Frame(
-            self.board_frame,
+            self.center_frame,
             width=50,
             height=50,
             bg=self.styles["frame_bg"],
@@ -46,7 +49,7 @@ class GameBoard:
         self.current_color_frame.pack(side="left", padx=10)
 
         self.top_card_frame = tk.Frame(
-            self.board_frame,
+            self.center_frame,
             width=100,
             height=150,
             bg="white",
