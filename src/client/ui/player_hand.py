@@ -92,7 +92,6 @@ class PlayerHand:
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
 
     def _handle_card_click(self, card: Card):
-        print(f"Card clicked: {card}")  # Debug print
         if self.on_card_clicked and self.interactive:
             asyncio.create_task(self.on_card_clicked(card))
 
