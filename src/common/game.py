@@ -98,7 +98,6 @@ class Game:
 
         if initial_card:
             self._discard_pile.append(initial_card)
-            self._current_color = initial_card.color
 
         self._state = GameState.PLAYING
         self._current_player_index = 0
@@ -119,6 +118,9 @@ class Game:
         self.current_player.remove_card(card)
         self._discard_pile.append(card)
 
+        if card.type not in [CardType.WILD, CardType.WILD_DRAW_FOUR]:
+            self._current_color = None
+
         match card.type:
             case CardType.SKIP:
                 self.skip_turn()
@@ -128,19 +130,16 @@ class Game:
                     self.skip_turn()
             case CardType.DRAW_TWO:
                 next_player = self._get_next_player()
-                for _ in range(2):
-                    drawn_cards = self._deck.draw_multiple(2)
-                    next_player.add_cards(drawn_cards)
+                drawn_cards = self._deck.draw_multiple(2)
+                next_player.add_cards(drawn_cards)
                 self.skip_turn()
             case CardType.WILD_DRAW_FOUR:
                 if not chosen_color:
                     raise GameError("Must specify color for wild card")
                 self._current_color = chosen_color
                 next_player = self._get_next_player()
-                for _ in range(4):
-                    drawn_card = self._deck.draw()
-                    if drawn_card:
-                        next_player.add_card(drawn_card)
+                drawn_cards = self._deck.draw_multiple(4)
+                next_player.add_cards(drawn_cards)
                 self.skip_turn()
             case CardType.WILD:
                 if not chosen_color:
@@ -182,12 +181,6 @@ class Game:
             return True
 
         top_card = self._discard_pile[-1]
-
-        if card.type in [CardType.WILD, CardType.WILD_DRAW_FOUR]:
-            return True
-
-        if self._current_color and card.color != self._current_color:
-            return False
 
         return card.can_be_played_on(top_card, self._current_color)
 
